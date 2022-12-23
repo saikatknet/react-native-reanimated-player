@@ -89,6 +89,8 @@ export type VideoProps = VideoProperties & {
   isFullScreen: Animated.SharedValue<boolean>;
   disableControl?: boolean;
   renderBackIcon?: () => JSX.Element;
+  prevIcon?: () => JSX.Element;
+  nextIcon?: () => JSX.Element;
   renderFullScreenBackIcon?: () => JSX.Element;
   renderMore?: () => JSX.Element;
   renderFullScreen?: () => JSX.Element;
@@ -98,6 +100,8 @@ export type VideoProps = VideoProperties & {
   children?: any;
   onPostProgress?: (data: OnProgressData) => void;
   onPostSeek?: (data: OnSeekData) => void;
+  moveNext: () => void;
+  movePrev: () => void;
 };
 export type VideoPlayerRef = {
   /**
@@ -157,6 +161,8 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoProps>(
       isFullScreen,
       disableControl,
       renderBackIcon,
+      prevIcon,
+      nextIcon,
       renderMore,
       renderFullScreen,
       renderFullScreenBackIcon,
@@ -166,6 +172,8 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoProps>(
       children,
       onPostProgress,
       onPostSeek,
+      movePrev,
+      moveNext,
       ...rest
     },
     ref,
@@ -582,6 +590,34 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoProps>(
       }
       runOnJS(togglePlayOnJS)();
     };
+
+    /**
+     * Call Next seek
+     * @returns
+     */
+    const onNextTapHandler = () => {
+      'worklet';
+      const status = checkTapTakesEffect();
+      if (!status) {
+        return;
+      }
+
+      runOnJS(moveNext)();
+    };
+
+    /**
+     * Call Prvious seek
+     * @returns
+     */
+    const onPrevTapHandler = () => {
+      'worklet';
+      const status = checkTapTakesEffect();
+      if (!status) {
+        return;
+      }
+
+      runOnJS(movePrev)();
+    };
     /**
      * on tap back
      * @returns
@@ -694,7 +730,7 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoProps>(
      *
      * @param {object} data The video meta data
      */
-     const onProgress = (data: OnProgressData) => {
+    const onProgress = (data: OnProgressData) => {
       const { currentTime: cTime } = data;
       if (!isScrubbing.value) {
         if (!isSeeking.current) {
@@ -789,6 +825,37 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoProps>(
       // eslint-disable-next-line react-hooks/exhaustive-deps
       [renderBackIcon],
     );
+
+    const _renderPrev = useCallback(
+      () => (
+        <View style={controlStyle.seekView}>
+          <TapControler onPress={onPrevTapHandler} style={controlStyle.seekCtl}>
+            {prevIcon ? (
+              prevIcon()
+            ) : (
+              <Text style={controlStyle.seekTxt}>Next</Text>
+            )}
+          </TapControler>
+        </View>
+      ),
+      [prevIcon],
+    );
+
+    const _renderNext = useCallback(
+      () => (
+        <View style={controlStyle.seekView}>
+          <TapControler onPress={onNextTapHandler} style={controlStyle.seekCtl}>
+            {nextIcon ? (
+              nextIcon()
+            ) : (
+              <Text style={controlStyle.seekTxt}>Next</Text>
+            )}
+          </TapControler>
+        </View>
+      ),
+      [nextIcon],
+    );
+
     const _renderFullScreenBack = useCallback(
       () => (
         <TapControler onPress={onBackTapHandler}>
@@ -938,15 +1005,24 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoProps>(
                     {Boolean(onTapMore) && _renderMore()}
                   </View>
                 </Animated.View>
-                <View style={controlStyle.pauseView}>
-                  <TapControler
-                    onPress={onPauseTapHandler}
-                    style={controlStyle.pause}>
-                    <AnimatedLottieView
-                      animatedProps={playAnimatedProps}
-                      source={require('./assets/lottie-play.json')}
-                    />
-                  </TapControler>
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                  }}>
+                  {_renderPrev()}
+                  <View style={controlStyle.pauseView}>
+                    <TapControler
+                      onPress={onPauseTapHandler}
+                      style={controlStyle.pause}>
+                      <AnimatedLottieView
+                        animatedProps={playAnimatedProps}
+                        source={require('./assets/lottie-play.json')}
+                      />
+                    </TapControler>
+                  </View>
+                  {_renderNext()}
                 </View>
                 <Animated.View
                   style={[
@@ -1190,9 +1266,23 @@ const controlStyle = StyleSheet.create({
     height: 48,
     width: 48,
   },
+  seekCtl: {
+    height: 30,
+    width: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   pauseView: {
     alignSelf: 'center',
   },
+  seekView: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    alignSelf: 'center',
+    width: 200,
+    height: 40,
+  },
+  seekTxt: { color: 'white', fontSize: 20 },
   row: {
     alignItems: 'center',
     flexDirection: 'row',
